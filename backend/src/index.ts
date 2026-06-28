@@ -2,6 +2,8 @@ import express, { Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 
+import authRoutes from './routes/auth.routes';
+
 // Load environment variables
 dotenv.config();
 
@@ -14,6 +16,9 @@ app.use(cors({
   credentials: true,
 }));
 app.use(express.json());
+
+// Routes
+app.use('/api/auth', authRoutes);
 
 // Health Check Endpoint
 app.get('/api/health', (req: Request, res: Response) => {
