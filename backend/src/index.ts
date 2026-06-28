@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 
 import authRoutes from './routes/auth.routes';
+import schoolRoutes from './routes/school.routes';
 
 // Load environment variables
 dotenv.config();
@@ -19,6 +20,7 @@ app.use(express.json());
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api', schoolRoutes);
 
 // Health Check Endpoint
 app.get('/api/health', (req: Request, res: Response) => {
