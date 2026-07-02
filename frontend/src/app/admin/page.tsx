@@ -104,7 +104,7 @@ interface Assignment {
 
 export default function SchoolAdminDashboard() {
   const { user, logout } = useAuth();
-  const [activeTab, setActiveTab] = useState<'profile' | 'academic' | 'users' | 'assignments'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'academic' | 'users' | 'assignments' | 'landingPage'>('profile');
 
   // Loading and Error States
   const [loading, setLoading] = useState(true);
@@ -121,6 +121,24 @@ export default function SchoolAdminDashboard() {
   const [arms, setArms] = useState<ArmModel[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
+
+  // Landing Page configuration state
+  const [landingConfig, setLandingConfig] = useState<any>(null);
+  const [landingForm, setLandingForm] = useState({
+    heroTitle: '',
+    heroDescription: '',
+    primaryColor: '#1e3a8a',
+    secondaryColor: '#d97706',
+    aboutText: '',
+    contactEmail: '',
+    contactPhone: '',
+    contactAddress: '',
+    facebook: '',
+    twitter: '',
+    instagram: '',
+    galleryImagesText: '',
+    isPublished: false,
+  });
 
   // Sub-tabs for Academic tab
   const [academicSubTab, setAcademicSubTab] = useState<'sessions' | 'terms' | 'classes' | 'arms' | 'subjects'>('sessions');
@@ -196,6 +214,29 @@ export default function SchoolAdminDashboard() {
 
       const assignmentsData = await api.get<{ assignments: Assignment[] }>('/admin/assignments');
       setAssignments(assignmentsData.assignments);
+
+      // Fetch landing page config
+      const lpData = await api.get<{ landingPage: any }>('/admin/landing-page');
+      setLandingConfig(lpData.landingPage);
+      if (lpData.landingPage) {
+        const social = lpData.landingPage.socialLinks || {};
+        const gallery = lpData.landingPage.galleryImages || [];
+        setLandingForm({
+          heroTitle: lpData.landingPage.heroTitle || '',
+          heroDescription: lpData.landingPage.heroDescription || '',
+          primaryColor: lpData.landingPage.primaryColor || '#1e3a8a',
+          secondaryColor: lpData.landingPage.secondaryColor || '#d97706',
+          aboutText: lpData.landingPage.aboutText || '',
+          contactEmail: lpData.landingPage.contactEmail || '',
+          contactPhone: lpData.landingPage.contactPhone || '',
+          contactAddress: lpData.landingPage.contactAddress || '',
+          facebook: social.facebook || '',
+          twitter: social.twitter || '',
+          instagram: social.instagram || '',
+          galleryImagesText: gallery.join(', '),
+          isPublished: lpData.landingPage.isPublished || false,
+        });
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to load school management data.');
     } finally {
@@ -206,6 +247,35 @@ export default function SchoolAdminDashboard() {
   useEffect(() => {
     fetchAllData();
   }, []);
+
+  const handleUpdateLandingPage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const payload = {
+      heroTitle: landingForm.heroTitle,
+      heroDescription: landingForm.heroDescription,
+      primaryColor: landingForm.primaryColor,
+      secondaryColor: landingForm.secondaryColor,
+      aboutText: landingForm.aboutText,
+      contactEmail: landingForm.contactEmail || null,
+      contactPhone: landingForm.contactPhone || null,
+      contactAddress: landingForm.contactAddress || null,
+      socialLinks: {
+        facebook: landingForm.facebook || undefined,
+        twitter: landingForm.twitter || undefined,
+        instagram: landingForm.instagram || undefined,
+      },
+      galleryImages: landingForm.galleryImagesText.split(',').map((img) => img.trim()).filter(Boolean),
+      isPublished: landingForm.isPublished,
+    };
+
+    try {
+      await api.put('/admin/landing-page', payload);
+      alert('Landing page saved successfully!');
+      await fetchAllData();
+    } catch (err: any) {
+      alert(err.message || 'Failed to save landing page configurations.');
+    }
+  };
 
   // Update Profile
   const handleUpdateProfile = async (e: React.FormEvent) => {
@@ -360,9 +430,15 @@ export default function SchoolAdminDashboard() {
               </button>
               <button
                 onClick={() => setActiveTab('assignments')}
-                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl font-medium text-sm transition-all text-left ${activeTab === 'assignments' ? 'bg-blue-600/10 text-blue-600 dark:text-blue-400' : 'text-slate-550 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl font-medium text-sm transition-all text-left ${activeTab === 'assignments' ? 'bg-blue-600/10 text-blue-600 dark:text-blue-400' : 'text-slate-555 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}
               >
                 👨‍🏫 Teacher Assignments
+              </button>
+              <button
+                onClick={() => setActiveTab('landingPage')}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl font-medium text-sm transition-all text-left ${activeTab === 'landingPage' ? 'bg-blue-600/10 text-blue-600 dark:text-blue-400' : 'text-slate-555 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}
+              >
+                🎨 Landing Page Builder
               </button>
             </nav>
           </div>
@@ -944,6 +1020,174 @@ export default function SchoolAdminDashboard() {
                       </tbody>
                     </table>
                   </div>
+                </div>
+              )}
+
+              {/* Tab 5: LANDING PAGE BUILDER */}
+              {activeTab === 'landingPage' && landingConfig && (
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 space-y-6 shadow-sm animate-fadeIn text-slate-800 dark:text-slate-100">
+                  <div className="flex justify-between items-center pb-2 border-b border-slate-100 dark:border-slate-800">
+                    <h2 className="text-lg font-bold text-slate-900 dark:text-white">Customize Landing Page</h2>
+                    <a
+                      href={`/s/${schoolProfile?.slug}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="py-1.5 px-4 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-lg text-xs transition-colors border border-slate-750"
+                    >
+                      🔗 View Public Page
+                    </a>
+                  </div>
+
+                  <form onSubmit={handleUpdateLandingPage} className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Hero Title</label>
+                        <input
+                          type="text"
+                          required
+                          value={landingForm.heroTitle}
+                          onChange={(e) => setLandingForm({ ...landingForm, heroTitle: e.target.value })}
+                          className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm text-slate-900 dark:text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Hero Description</label>
+                        <input
+                          type="text"
+                          required
+                          value={landingForm.heroDescription}
+                          onChange={(e) => setLandingForm({ ...landingForm, heroDescription: e.target.value })}
+                          className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm text-slate-900 dark:text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Primary Color (Hex)</label>
+                        <div className="flex gap-2">
+                          <input
+                            type="color"
+                            value={landingForm.primaryColor}
+                            onChange={(e) => setLandingForm({ ...landingForm, primaryColor: e.target.value })}
+                            className="w-12 h-10 border border-slate-200 dark:border-slate-800 rounded-xl cursor-pointer"
+                          />
+                          <input
+                            type="text"
+                            required
+                            pattern="^#[0-9a-fA-F]{6}$"
+                            value={landingForm.primaryColor}
+                            onChange={(e) => setLandingForm({ ...landingForm, primaryColor: e.target.value })}
+                            className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm font-mono text-slate-900 dark:text-white"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Secondary Color (Hex)</label>
+                        <div className="flex gap-2">
+                          <input
+                            type="color"
+                            value={landingForm.secondaryColor}
+                            onChange={(e) => setLandingForm({ ...landingForm, secondaryColor: e.target.value })}
+                            className="w-12 h-10 border border-slate-200 dark:border-slate-800 rounded-xl cursor-pointer"
+                          />
+                          <input
+                            type="text"
+                            required
+                            pattern="^#[0-9a-fA-F]{6}$"
+                            value={landingForm.secondaryColor}
+                            onChange={(e) => setLandingForm({ ...landingForm, secondaryColor: e.target.value })}
+                            className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm font-mono text-slate-900 dark:text-white"
+                          />
+                        </div>
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">About Section Text</label>
+                        <textarea
+                          required
+                          value={landingForm.aboutText}
+                          onChange={(e) => setLandingForm({ ...landingForm, aboutText: e.target.value })}
+                          className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm h-28 text-slate-900 dark:text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Contact Email</label>
+                        <input
+                          type="email"
+                          value={landingForm.contactEmail}
+                          onChange={(e) => setLandingForm({ ...landingForm, contactEmail: e.target.value })}
+                          className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm text-slate-900 dark:text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Contact Phone</label>
+                        <input
+                          type="text"
+                          value={landingForm.contactPhone}
+                          onChange={(e) => setLandingForm({ ...landingForm, contactPhone: e.target.value })}
+                          className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm text-slate-900 dark:text-white"
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-xs font-bold text-slate-550 mb-2">Contact Physical Address</label>
+                        <input
+                          type="text"
+                          value={landingForm.contactAddress}
+                          onChange={(e) => setLandingForm({ ...landingForm, contactAddress: e.target.value })}
+                          className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm text-slate-900 dark:text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-550 mb-2">Facebook URL</label>
+                        <input
+                          type="url"
+                          value={landingForm.facebook}
+                          onChange={(e) => setLandingForm({ ...landingForm, facebook: e.target.value })}
+                          className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm text-slate-900 dark:text-white"
+                          placeholder="https://facebook.com/..."
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-550 mb-2">Instagram URL</label>
+                        <input
+                          type="url"
+                          value={landingForm.instagram}
+                          onChange={(e) => setLandingForm({ ...landingForm, instagram: e.target.value })}
+                          className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm text-slate-900 dark:text-white"
+                          placeholder="https://instagram.com/..."
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-xs font-bold text-slate-550 mb-2">Gallery Images (comma separated URLs)</label>
+                        <input
+                          type="text"
+                          value={landingForm.galleryImagesText}
+                          onChange={(e) => setLandingForm({ ...landingForm, galleryImagesText: e.target.value })}
+                          className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm text-slate-900 dark:text-white"
+                          placeholder="URL1, URL2, URL3"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 py-2 border-t border-slate-100 dark:border-slate-800">
+                      <input
+                        type="checkbox"
+                        id="isLandingPublished"
+                        checked={landingForm.isPublished}
+                        onChange={(e) => setLandingForm({ ...landingForm, isPublished: e.target.checked })}
+                        className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <label htmlFor="isLandingPublished" className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                        Publish school landing page (makes it publicly visible at /s/{schoolProfile?.slug})
+                      </label>
+                    </div>
+
+                    <div className="pt-2">
+                      <button
+                        type="submit"
+                        className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-sm transition-colors shadow-lg"
+                      >
+                        Save Configurations
+                      </button>
+                    </div>
+                  </form>
                 </div>
               )}
             </>
