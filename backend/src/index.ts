@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import authRoutes from './routes/auth.routes';
 import schoolRoutes from './routes/school.routes';
 import superAdminRoutes from './routes/super-admin.routes';
+import adminRoutes from './routes/admin.routes';
 
 // Load environment variables
 dotenv.config();
@@ -23,6 +24,7 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api', schoolRoutes);
 app.use('/api', superAdminRoutes);
+app.use('/api', adminRoutes);
 
 // Health Check Endpoint
 app.get('/api/health', (req: Request, res: Response) => {
