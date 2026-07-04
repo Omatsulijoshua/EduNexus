@@ -42,6 +42,14 @@ interface Parent {
     lastName: string;
     phone: string | null;
   };
+  children: {
+    id: string;
+    admissionNumber: string;
+    user: {
+      firstName: string;
+      lastName: string;
+    };
+  }[];
 }
 
 interface Student {

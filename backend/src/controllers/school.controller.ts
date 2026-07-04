@@ -21,7 +21,7 @@ const updateSchoolProfileSchema = z.object({
 // ==========================================
 
 // 1. Get all registered schools with user counts
-export const getAllSchools = async (req: Request, res: Response): Promise<void> => {
+export const getAllSchools = async (_req: Request, res: Response): Promise<void> => {
   try {
     const schools = await prisma.school.findMany({
       include: {

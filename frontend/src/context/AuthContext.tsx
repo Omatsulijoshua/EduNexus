@@ -15,6 +15,7 @@ export interface UserProfile {
   schoolId: string | null;
   schoolSlug: string | null;
   schoolName: string | null;
+  phone?: string | null;
 }
 
 interface AuthContextType {

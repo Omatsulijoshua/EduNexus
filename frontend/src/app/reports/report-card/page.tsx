@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import api from '../../../lib/api';
 
@@ -42,7 +42,7 @@ interface ReportSheetData {
   };
 }
 
-export default function ReportCardPage() {
+function ReportCardContent() {
   const searchParams = useSearchParams();
   const studentId = searchParams.get('studentId');
   const termId = searchParams.get('termId');
@@ -275,5 +275,20 @@ export default function ReportCardPage() {
         }
       `}</style>
     </div>
+  );
+}
+
+export default function ReportCardPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 border-4 border-blue-650 border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-sm text-slate-550">Loading report card details...</p>
+        </div>
+      </div>
+    }>
+      <ReportCardContent />
+    </Suspense>
   );
 }

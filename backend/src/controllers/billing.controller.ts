@@ -33,14 +33,33 @@ export const getActiveBilling = async (req: Request, res: Response): Promise<voi
     // 4. Fetch all subscription plans (for upgrading options)
     const plans = await prisma.subscriptionPlan.findMany();
 
+    // Map maxStudents and maxTeachers to studentLimit and teacherLimit for frontend compatibility
+    const mappedPlans = plans.map((p) => ({
+      ...p,
+      studentLimit: p.maxStudents,
+      teacherLimit: p.maxTeachers,
+    }));
+
+    let mappedSub = null;
+    if (subscription) {
+      mappedSub = {
+        ...subscription,
+        plan: {
+          ...subscription.plan,
+          studentLimit: subscription.plan.maxStudents,
+          teacherLimit: subscription.plan.maxTeachers,
+        },
+      };
+    }
+
     res.status(200).json({
-      subscription,
+      subscription: mappedSub,
       usage: {
         students: studentCount,
         teachers: teacherCount,
       },
       payments,
-      plans,
+      plans: mappedPlans,
     });
   } catch (error) {
     console.error('GetActiveBilling Error:', error);
@@ -49,7 +68,6 @@ export const getActiveBilling = async (req: Request, res: Response): Promise<voi
 };
 
 export const createCheckoutSession = async (req: Request, res: Response): Promise<void> => {
-  const schoolId = req.schoolId;
   const { planId } = req.body;
 
   if (!planId) {
@@ -80,6 +98,11 @@ export const createCheckoutSession = async (req: Request, res: Response): Promis
 export const confirmCheckout = async (req: Request, res: Response): Promise<void> => {
   const schoolId = req.schoolId;
   const { planId } = req.body;
+
+  if (!schoolId) {
+    res.status(400).json({ error: 'School context not resolved.' });
+    return;
+  }
 
   if (!planId) {
     res.status(400).json({ error: 'planId is required to confirm checkout.' });

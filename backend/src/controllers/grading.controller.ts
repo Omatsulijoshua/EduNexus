@@ -32,7 +32,7 @@ const calculateGrade = (total: number): string => {
 // ==========================================
 
 export const getGradeBook = async (req: Request, res: Response): Promise<void> => {
-  const userId = req.user?.id;
+  const userId = req.user?.userId;
   const { classId, classArmId, subjectId, termId, sessionId } = req.query;
 
   if (!classId || !classArmId || !subjectId || !termId || !sessionId) {
@@ -120,7 +120,7 @@ export const getGradeBook = async (req: Request, res: Response): Promise<void> =
 };
 
 export const submitGrades = async (req: Request, res: Response): Promise<void> => {
-  const userId = req.user?.id;
+  const userId = req.user?.userId;
 
   try {
     const parsedData = submitGradesSchema.parse(req.body);

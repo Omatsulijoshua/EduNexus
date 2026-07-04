@@ -37,9 +37,9 @@ export const checkSubscriptionLimit = (type: 'STUDENT' | 'TEACHER') => {
           where: { schoolId },
         });
 
-        if (studentCount >= subscription.plan.studentLimit) {
+        if (studentCount >= subscription.plan.maxStudents) {
           res.status(403).json({
-            error: `Plan limits exceeded. Your plan allows a maximum of ${subscription.plan.studentLimit} students. Please upgrade your plan.`,
+            error: `Plan limits exceeded. Your plan allows a maximum of ${subscription.plan.maxStudents} students. Please upgrade your plan.`,
             code: 'STUDENT_LIMIT_EXCEEDED',
           });
           return;
@@ -51,9 +51,9 @@ export const checkSubscriptionLimit = (type: 'STUDENT' | 'TEACHER') => {
           where: { schoolId },
         });
 
-        if (teacherCount >= subscription.plan.teacherLimit) {
+        if (teacherCount >= subscription.plan.maxTeachers) {
           res.status(403).json({
-            error: `Plan limits exceeded. Your plan allows a maximum of ${subscription.plan.teacherLimit} teachers. Please upgrade your plan.`,
+            error: `Plan limits exceeded. Your plan allows a maximum of ${subscription.plan.maxTeachers} teachers. Please upgrade your plan.`,
             code: 'TEACHER_LIMIT_EXCEEDED',
           });
           return;

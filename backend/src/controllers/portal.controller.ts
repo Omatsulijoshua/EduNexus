@@ -13,7 +13,7 @@ const updateProfileSchema = z.object({
 // ==========================================
 
 export const getStudentDashboard = async (req: Request, res: Response): Promise<void> => {
-  const userId = req.user?.id;
+  const userId = req.user?.userId;
 
   try {
     const student = await prisma.studentProfile.findUnique({
@@ -25,9 +25,6 @@ export const getStudentDashboard = async (req: Request, res: Response): Promise<
         classArm: {
           select: { id: true, name: true },
         },
-        school: {
-          select: { name: true },
-        },
       },
     });
 
@@ -35,6 +32,12 @@ export const getStudentDashboard = async (req: Request, res: Response): Promise<
       res.status(404).json({ error: 'Student profile not found.' });
       return;
     }
+
+    // Fetch school name separately since StudentProfile doesn't have a direct school relation
+    const school = await prisma.school.findUnique({
+      where: { id: student.schoolId },
+      select: { name: true },
+    });
 
     // Get current active session
     const currentSession = await prisma.academicSession.findFirst({
@@ -87,7 +90,7 @@ export const getStudentDashboard = async (req: Request, res: Response): Promise<
 
     res.status(200).json({
       studentId: student.id,
-      schoolName: student.school.name,
+      schoolName: school?.name || '',
       className: student.class.name,
       armName: student.classArm.name,
       admissionNumber: student.admissionNumber,
@@ -117,7 +120,7 @@ export const getStudentDashboard = async (req: Request, res: Response): Promise<
 };
 
 export const getStudentProfile = async (req: Request, res: Response): Promise<void> => {
-  const userId = req.user?.id;
+  const userId = req.user?.userId;
 
   try {
     const student = await prisma.studentProfile.findUnique({
@@ -156,7 +159,7 @@ export const getStudentProfile = async (req: Request, res: Response): Promise<vo
 };
 
 export const updateStudentProfile = async (req: Request, res: Response): Promise<void> => {
-  const userId = req.user?.id;
+  const userId = req.user?.userId;
 
   try {
     const parsedData = updateProfileSchema.parse(req.body);
@@ -197,7 +200,7 @@ export const updateStudentProfile = async (req: Request, res: Response): Promise
 // ==========================================
 
 export const getParentDashboard = async (req: Request, res: Response): Promise<void> => {
-  const userId = req.user?.id;
+  const userId = req.user?.userId;
 
   try {
     const parent = await prisma.parentProfile.findUnique({
@@ -236,7 +239,7 @@ export const getParentDashboard = async (req: Request, res: Response): Promise<v
 };
 
 export const getParentChildren = async (req: Request, res: Response): Promise<void> => {
-  const userId = req.user?.id;
+  const userId = req.user?.userId;
 
   try {
     const parent = await prisma.parentProfile.findUnique({
@@ -256,22 +259,52 @@ export const getParentChildren = async (req: Request, res: Response): Promise<vo
         },
         class: { select: { name: true } },
         classArm: { select: { name: true } },
-        resultScores: {
+        results: {
           include: {
             subject: { select: { name: true, code: true } },
-            result: {
-              include: {
-                term: { select: { name: true } },
-                session: { select: { name: true } },
-              },
-            },
+            scores: true,
+            term: { select: { id: true, name: true } },
+            session: { select: { id: true, name: true } },
           },
           orderBy: { createdAt: 'desc' },
         },
       },
     });
 
-    res.status(200).json({ children });
+    const mappedChildren = children.map((child) => {
+      const resultScores: any[] = [];
+      child.results.forEach((resVal) => {
+        const caScore = resVal.scores.find((s) => s.name === 'CA')?.score || 0;
+        const examScore = resVal.scores.find((s) => s.name === 'Exam')?.score || 0;
+        resultScores.push({
+          id: resVal.id,
+          caScore,
+          examScore,
+          total: resVal.totalScore,
+          subject: {
+            name: resVal.subject.name,
+            code: resVal.subject.code,
+          },
+          result: {
+            term: { name: resVal.term.name },
+            termId: resVal.term.id,
+            session: { name: resVal.session.name },
+            sessionId: resVal.session.id,
+          },
+        });
+      });
+
+      return {
+        id: child.id,
+        admissionNumber: child.admissionNumber,
+        user: child.user,
+        class: child.class,
+        classArm: child.classArm,
+        resultScores,
+      };
+    });
+
+    res.status(200).json({ children: mappedChildren });
   } catch (error) {
     console.error('GetParentChildren Error:', error);
     res.status(500).json({ error: 'Internal server error fetching children academic details.' });
@@ -283,7 +316,7 @@ export const getParentChildren = async (req: Request, res: Response): Promise<vo
 // ==========================================
 
 export const getTeacherDashboard = async (req: Request, res: Response): Promise<void> => {
-  const userId = req.user?.id;
+  const userId = req.user?.userId;
 
   try {
     const teacher = await prisma.teacherProfile.findUnique({
@@ -314,7 +347,7 @@ export const getTeacherDashboard = async (req: Request, res: Response): Promise<
 };
 
 export const getTeacherClasses = async (req: Request, res: Response): Promise<void> => {
-  const userId = req.user?.id;
+  const userId = req.user?.userId;
 
   try {
     const teacher = await prisma.teacherProfile.findUnique({
@@ -344,7 +377,7 @@ export const getTeacherClasses = async (req: Request, res: Response): Promise<vo
 };
 
 export const getTeacherStudents = async (req: Request, res: Response): Promise<void> => {
-  const userId = req.user?.id;
+  const userId = req.user?.userId;
   const { classId, classArmId } = req.query;
 
   if (!classId || !classArmId) {
@@ -397,7 +430,7 @@ export const getTeacherStudents = async (req: Request, res: Response): Promise<v
 };
 
 export const getTeacherTerms = async (req: Request, res: Response): Promise<void> => {
-  const userId = req.user?.id;
+  const userId = req.user?.userId;
 
   try {
     const teacher = await prisma.teacherProfile.findUnique({

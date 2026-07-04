@@ -165,7 +165,7 @@ export const getReportSheet = async (req: Request, res: Response): Promise<void>
   }
 
   const userRole = req.user?.role;
-  const userId = req.user?.id;
+  const userId = req.user?.userId;
 
   try {
     // 1. Fetch the target student profile details
@@ -175,7 +175,6 @@ export const getReportSheet = async (req: Request, res: Response): Promise<void>
         user: { select: { firstName: true, lastName: true, email: true } },
         class: { select: { id: true, name: true } },
         classArm: { select: { id: true, name: true } },
-        school: { select: { name: true, email: true, phone: true, address: true, logoUrl: true } },
       },
     });
 
@@ -183,6 +182,12 @@ export const getReportSheet = async (req: Request, res: Response): Promise<void>
       res.status(404).json({ error: 'Student not found.' });
       return;
     }
+
+    // Fetch school details separately since StudentProfile doesn't have a direct school relation
+    const school = await prisma.school.findUnique({
+      where: { id: student.schoolId },
+      select: { name: true, email: true, phone: true, address: true, logoUrl: true },
+    });
 
     // 2. Security Check: Enforce role-based access restrictions
     if (userRole === 'STUDENT') {
@@ -285,7 +290,7 @@ export const getReportSheet = async (req: Request, res: Response): Promise<void>
     const term = await prisma.term.findUnique({ where: { id: termId as string } });
 
     res.status(200).json({
-      school: student.school,
+      school,
       student: {
         id: student.id,
         firstName: student.user.firstName,

@@ -22,7 +22,9 @@ interface ChildData {
     subject: { name: string; code: string };
     result: {
       term: { name: string };
+      termId: string;
       session: { name: string };
+      sessionId: string;
     };
   }>;
 }

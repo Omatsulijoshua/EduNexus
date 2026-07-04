@@ -14,7 +14,7 @@ const planSchema = z.object({
 });
 
 // 1. Get SaaS-wide Analytics
-export const getSaaSAnalytics = async (req: Request, res: Response): Promise<void> => {
+export const getSaaSAnalytics = async (_req: Request, res: Response): Promise<void> => {
   try {
     const totalSchools = await prisma.school.count();
     const approvedSchools = await prisma.school.count({ where: { status: 'APPROVED' } });
@@ -74,7 +74,7 @@ export const getSaaSAnalytics = async (req: Request, res: Response): Promise<voi
 };
 
 // 2. Get Subscription Plans
-export const getSubscriptionPlans = async (req: Request, res: Response): Promise<void> => {
+export const getSubscriptionPlans = async (_req: Request, res: Response): Promise<void> => {
   try {
     const plans = await prisma.subscriptionPlan.findMany({
       orderBy: { price: 'asc' },

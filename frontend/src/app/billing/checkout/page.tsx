@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import api from '../../../lib/api';
 
-export default function CheckoutPage() {
+function CheckoutForm() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const planId = searchParams.get('planId');
@@ -29,7 +29,6 @@ export default function CheckoutPage() {
         return;
       }
       try {
-        // Load plan from billing active plans list
         const res = await api.get<any>('/billing/active');
         const selectedPlan = res.plans.find((p: any) => p.id === planId);
         if (!selectedPlan) {
@@ -54,7 +53,6 @@ export default function CheckoutPage() {
     try {
       await api.post('/billing/confirm-checkout', { planId });
       setSuccess(true);
-      // Redirect back to admin billing tab after 3 seconds
       setTimeout(() => {
         router.push('/admin');
       }, 3000);
@@ -93,7 +91,7 @@ export default function CheckoutPage() {
                     <span className="text-xs text-slate-550">/mo</span>
                   </div>
                 </div>
-                <ul className="text-xs text-slate-500 space-y-2">
+                <ul className="text-xs text-slate-550 space-y-2">
                   <li>✔ Student Limit: <span className="font-semibold text-slate-800 dark:text-slate-200">{plan.studentLimit} student accounts</span></li>
                   <li>✔ Teacher Limit: <span className="font-semibold text-slate-800 dark:text-slate-200">{plan.teacherLimit} teacher accounts</span></li>
                   <li>✔ Access: Full modules, reporting sheets, dynamic customization</li>
@@ -113,7 +111,7 @@ export default function CheckoutPage() {
             <div className="text-center space-y-4 py-8 animate-fadeIn">
               <span className="text-4xl">🎉</span>
               <h3 className="text-xl font-black text-emerald-500">Payment Successful!</h3>
-              <p className="text-xs text-slate-500 leading-relaxed">
+              <p className="text-xs text-slate-550 leading-relaxed">
                 Thank you! Your school subscription has been activated. Redirecting you back to the admin billing dashboard in a moment...
               </p>
             </div>
@@ -121,7 +119,7 @@ export default function CheckoutPage() {
             <form onSubmit={handlePay} className="space-y-6">
               <div className="space-y-1">
                 <h3 className="text-xl font-extrabold text-slate-900 dark:text-white">Mock Checkout</h3>
-                <p className="text-xs text-slate-500">Click Pay Now to activate this mock payment log.</p>
+                <p className="text-xs text-slate-550">Click Pay Now to activate this mock payment log.</p>
               </div>
 
               {error && (
@@ -186,5 +184,20 @@ export default function CheckoutPage() {
 
       </div>
     </div>
+  );
+}
+
+export default function CheckoutPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-sm text-slate-550">Loading checkout session...</p>
+        </div>
+      </div>
+    }>
+      <CheckoutForm />
+    </Suspense>
   );
 }
