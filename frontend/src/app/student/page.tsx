@@ -20,10 +20,13 @@ interface ScoreInfo {
   examScore: number;
   total: number;
   term: string;
+  termId: string;
   session: string;
+  sessionId: string;
 }
 
 interface StudentDashboardData {
+  studentId: string;
   schoolName: string;
   className: string;
   armName: string;
@@ -176,7 +179,19 @@ export default function StudentDashboard() {
 
                 {/* Recent Academic Scores */}
                 <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 space-y-4 shadow-sm">
-                  <h3 className="font-bold text-base text-slate-900 dark:text-white">Recent Term Grade Summaries</h3>
+                  <div className="flex justify-between items-center pb-2 border-b border-slate-100 dark:border-slate-850">
+                    <h3 className="font-bold text-base text-slate-900 dark:text-white">Recent Term Grade Summaries</h3>
+                    {data?.recentScores && data.recentScores.length > 0 && (
+                      <a
+                        href={`/reports/report-card?studentId=${data.studentId}&termId=${data.recentScores[0].termId}&sessionId=${data.recentScores[0].sessionId}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="py-1.5 px-4 bg-blue-650 hover:bg-blue-600 text-white font-bold text-xs rounded-xl shadow-md transition-all"
+                      >
+                        🖨 Print Report Card
+                      </a>
+                    )}
+                  </div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm text-slate-350">
                       <thead className="text-xs text-slate-500 uppercase border-b border-slate-200 dark:border-slate-800">

@@ -104,11 +104,21 @@ interface Assignment {
 
 export default function SchoolAdminDashboard() {
   const { user, logout } = useAuth();
-  const [activeTab, setActiveTab] = useState<'profile' | 'academic' | 'users' | 'assignments' | 'landingPage'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'academic' | 'users' | 'assignments' | 'landingPage' | 'reports'>('profile');
 
   // Loading and Error States
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Master Sheet reporting states
+  const [reportFilter, setReportFilter] = useState({
+    classId: '',
+    classArmId: '',
+    termId: '',
+    sessionId: '',
+  });
+  const [masterSheet, setMasterSheet] = useState<any | null>(null);
+  const [masterSheetLoading, setMasterSheetLoading] = useState(false);
 
   // Data States
   const [schoolProfile, setSchoolProfile] = useState<SchoolProfile | null>(null);
@@ -237,6 +247,14 @@ export default function SchoolAdminDashboard() {
           isPublished: lpData.landingPage.isPublished || false,
         });
       }
+
+      // Prepopulate Master Sheet report filters
+      setReportFilter({
+        sessionId: sessionsData.sessions.find((s: any) => s.isCurrent)?.id || sessionsData.sessions[0]?.id || '',
+        termId: termsData.terms.find((t: any) => t.isCurrent)?.id || termsData.terms[0]?.id || '',
+        classId: classesData.classes[0]?.id || '',
+        classArmId: armsData.arms[0]?.id || '',
+      });
     } catch (err: any) {
       setError(err.message || 'Failed to load school management data.');
     } finally {
@@ -247,6 +265,22 @@ export default function SchoolAdminDashboard() {
   useEffect(() => {
     fetchAllData();
   }, []);
+
+  const handleGenerateMasterSheet = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setMasterSheetLoading(true);
+    setMasterSheet(null);
+    try {
+      const data = await api.get<any>(
+        `/reports/master-sheet?classId=${reportFilter.classId}&classArmId=${reportFilter.classArmId}&termId=${reportFilter.termId}&sessionId=${reportFilter.sessionId}`
+      );
+      setMasterSheet(data);
+    } catch (err: any) {
+      alert(err.message || 'Failed to generate master sheet.');
+    } finally {
+      setMasterSheetLoading(false);
+    }
+  };
 
   const handleUpdateLandingPage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -439,6 +473,12 @@ export default function SchoolAdminDashboard() {
                 className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl font-medium text-sm transition-all text-left ${activeTab === 'landingPage' ? 'bg-blue-600/10 text-blue-600 dark:text-blue-400' : 'text-slate-555 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}
               >
                 🎨 Landing Page Builder
+              </button>
+              <button
+                onClick={() => setActiveTab('reports')}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl font-medium text-sm transition-all text-left ${activeTab === 'reports' ? 'bg-blue-600/10 text-blue-600 dark:text-blue-400' : 'text-slate-555 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}
+              >
+                📊 Reports & Master Sheet
               </button>
             </nav>
           </div>
@@ -1188,6 +1228,165 @@ export default function SchoolAdminDashboard() {
                       </button>
                     </div>
                   </form>
+                </div>
+              )}
+
+              {/* Tab 6: REPORTS & MASTER SHEET */}
+              {activeTab === 'reports' && (
+                <div className="space-y-6 animate-fadeIn">
+                  {/* Filter Form */}
+                  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl shadow-sm space-y-4">
+                    <h3 className="font-bold text-base text-slate-900 dark:text-white pb-2 border-b border-slate-100 dark:border-slate-850">
+                      Select Master Sheet Options
+                    </h3>
+                    <form onSubmit={handleGenerateMasterSheet} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Class</label>
+                        <select
+                          value={reportFilter.classId}
+                          onChange={(e) => setReportFilter({ ...reportFilter, classId: e.target.value })}
+                          className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold text-slate-955 dark:text-slate-100"
+                        >
+                          {classes.map((c) => (
+                            <option key={c.id} value={c.id}>{c.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Class Arm</label>
+                        <select
+                          value={reportFilter.classArmId}
+                          onChange={(e) => setReportFilter({ ...reportFilter, classArmId: e.target.value })}
+                          className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold text-slate-955 dark:text-slate-100"
+                        >
+                          {arms.filter(a => a.class.name === classes.find(c => c.id === reportFilter.classId)?.name).map((a) => (
+                            <option key={a.id} value={a.id}>{a.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Session</label>
+                        <select
+                          value={reportFilter.sessionId}
+                          onChange={(e) => setReportFilter({ ...reportFilter, sessionId: e.target.value })}
+                          className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold text-slate-955 dark:text-slate-100"
+                        >
+                          {sessions.map((s) => (
+                            <option key={s.id} value={s.id}>{s.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Term</label>
+                        <select
+                          value={reportFilter.termId}
+                          onChange={(e) => setReportFilter({ ...reportFilter, termId: e.target.value })}
+                          className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold text-slate-955 dark:text-slate-100"
+                        >
+                          {terms.map((t) => (
+                            <option key={t.id} value={t.id}>{t.name} ({t.session.name})</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="md:col-span-4 flex justify-end pt-2">
+                        <button
+                          type="submit"
+                          disabled={masterSheetLoading}
+                          className="py-2.5 px-6 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-xs transition-colors shadow-lg"
+                        >
+                          {masterSheetLoading ? 'Generating...' : '🔍 Generate Master Sheet'}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+
+                  {/* Generated Master Sheet Grid */}
+                  {masterSheet && (
+                    <div id="master-sheet-print-area" className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl shadow-sm space-y-4 overflow-hidden">
+                      <div className="flex justify-between items-center pb-2 border-b border-slate-100 dark:border-slate-850 print:hidden">
+                        <div>
+                          <h4 className="font-extrabold text-base text-slate-900 dark:text-white">Academic Master Grid Sheet</h4>
+                          <p className="text-xs text-slate-550">Overview of student academic grades across subjects</p>
+                        </div>
+                        <button
+                          onClick={() => window.print()}
+                          className="py-1.5 px-4 bg-slate-800 hover:bg-slate-700 text-slate-350 border border-slate-750 font-bold rounded-xl text-xs transition-colors"
+                        >
+                          🖨 Print Master Sheet
+                        </button>
+                      </div>
+
+                      {/* Matrix Grid Table */}
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left text-xs border-collapse">
+                          <thead>
+                            <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-500 font-bold uppercase bg-slate-50 dark:bg-slate-950">
+                              <th className="py-2.5 px-3 border border-slate-200 dark:border-slate-800">Student Info</th>
+                              {masterSheet.subjects.map((sub: any) => (
+                                <th key={sub.id} className="py-2.5 px-3 border border-slate-200 dark:border-slate-800 text-center font-mono">
+                                  {sub.code}
+                                </th>
+                              ))}
+                              <th className="py-2.5 px-3 border border-slate-200 dark:border-slate-800 text-center">Total</th>
+                              <th className="py-2.5 px-3 border border-slate-200 dark:border-slate-800 text-center">Avg</th>
+                              <th className="py-2.5 px-3 border border-slate-200 dark:border-slate-800 text-center">Pos</th>
+                              <th className="py-2.5 px-3 border border-slate-200 dark:border-slate-800 text-center print:hidden">Reports</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {masterSheet.students.map((student: any) => (
+                              <tr key={student.studentId} className="border-b border-slate-100 dark:border-slate-850 hover:bg-slate-50/50 dark:hover:bg-slate-850/50">
+                                <td className="py-2.5 px-3 border border-slate-200 dark:border-slate-800 font-semibold text-slate-900 dark:text-white">
+                                  <div>{student.firstName} {student.lastName}</div>
+                                  <div className="text-[9px] text-slate-500 font-mono">{student.admissionNumber}</div>
+                                </td>
+                                {masterSheet.subjects.map((sub: any) => (
+                                  <td key={sub.id} className="py-2.5 px-3 border border-slate-200 dark:border-slate-800 text-center font-semibold text-slate-655 dark:text-slate-350">
+                                    {student.scores[sub.id] !== null ? student.scores[sub.id] : '-'}
+                                  </td>
+                                ))}
+                                <td className="py-2.5 px-3 border border-slate-200 dark:border-slate-800 text-center font-bold text-slate-900 dark:text-white">
+                                  {student.totalAccumulated}
+                                </td>
+                                <td className="py-2.5 px-3 border border-slate-200 dark:border-slate-800 text-center font-bold text-blue-600 dark:text-blue-450">
+                                  {student.average}%
+                                </td>
+                                <td className="py-2.5 px-3 border border-slate-200 dark:border-slate-800 text-center font-extrabold text-slate-950 dark:text-white">
+                                  {student.position}
+                                </td>
+                                <td className="py-2.5 px-3 border border-slate-200 dark:border-slate-800 text-center print:hidden">
+                                  <a
+                                    href={`/reports/report-card?studentId=${student.studentId}&termId=${reportFilter.termId}&sessionId=${reportFilter.sessionId}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="px-2.5 py-1 bg-blue-600/10 text-blue-600 border border-blue-500/20 text-[10px] font-bold rounded hover:bg-blue-600 hover:text-white transition-colors"
+                                  >
+                                    Report Card
+                                  </a>
+                                </td>
+                              </tr>
+                            ))}
+
+                            {/* Class averages row */}
+                            <tr className="bg-slate-50 dark:bg-slate-950 font-bold">
+                              <td className="py-3 px-3 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white">
+                                Class Average
+                              </td>
+                              {masterSheet.subjects.map((sub: any) => (
+                                <td key={sub.id} className="py-3 px-3 border border-slate-200 dark:border-slate-800 text-center text-blue-600 dark:text-blue-450">
+                                  {masterSheet.subjectAverages[sub.id] || 0}%
+                                </td>
+                              ))}
+                              <td className="py-3 px-3 border border-slate-200 dark:border-slate-800 text-center">-</td>
+                              <td className="py-3 px-3 border border-slate-200 dark:border-slate-800 text-center">-</td>
+                              <td className="py-3 px-3 border border-slate-200 dark:border-slate-800 text-center">-</td>
+                              <td className="py-3 px-3 border border-slate-200 dark:border-slate-800 text-center print:hidden">-</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </>

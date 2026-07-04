@@ -70,41 +70,45 @@ export const getStudentDashboard = async (req: Request, res: Response): Promise<
       }));
     }
 
-    // Get recent results/scores
-    const recentScores = await prisma.resultScore.findMany({
+    // Get recent results/scores from the parent Result model
+    const recentResults = await prisma.result.findMany({
       where: {
         studentId: student.id,
       },
       include: {
         subject: { select: { name: true, code: true } },
-        result: {
-          include: {
-            term: { select: { name: true } },
-            session: { select: { name: true } },
-          },
-        },
+        term: { select: { id: true, name: true } },
+        session: { select: { id: true, name: true } },
+        scores: true,
       },
       orderBy: { createdAt: 'desc' },
       take: 5,
     });
 
     res.status(200).json({
+      studentId: student.id,
       schoolName: student.school.name,
       className: student.class.name,
       armName: student.classArm.name,
       admissionNumber: student.admissionNumber,
       subjectsCount,
       subjectsList,
-      recentScores: recentScores.map((score) => ({
-        id: score.id,
-        subjectCode: score.subject.code,
-        subjectName: score.subject.name,
-        caScore: score.caScore,
-        examScore: score.examScore,
-        total: score.caScore + score.examScore,
-        term: score.result.term.name,
-        session: score.result.session.name,
-      })),
+      recentScores: recentResults.map((result) => {
+        const caScore = result.scores.find((s) => s.name === 'CA')?.score || 0;
+        const examScore = result.scores.find((s) => s.name === 'Exam')?.score || 0;
+        return {
+          id: result.id,
+          subjectCode: result.subject.code,
+          subjectName: result.subject.name,
+          caScore,
+          examScore,
+          total: result.totalScore,
+          term: result.term.name,
+          termId: result.term.id,
+          session: result.session.name,
+          sessionId: result.session.id,
+        };
+      }),
     });
   } catch (error) {
     console.error('GetStudentDashboard Error:', error);

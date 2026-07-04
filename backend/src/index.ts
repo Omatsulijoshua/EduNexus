@@ -9,6 +9,7 @@ import adminRoutes from './routes/admin.routes';
 import landingPageRoutes from './routes/landing-page.routes';
 import portalRoutes from './routes/portal.routes';
 import gradingRoutes from './routes/grading.routes';
+import reportRoutes from './routes/report.routes';
 
 // Load environment variables
 dotenv.config();
