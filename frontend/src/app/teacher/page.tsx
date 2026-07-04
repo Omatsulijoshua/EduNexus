@@ -42,6 +42,13 @@ export default function TeacherDashboard() {
   const [students, setStudents] = useState<StudentInfo[]>([]);
   const [studentsLoading, setStudentsLoading] = useState(false);
 
+  // Term & Grading States
+  const [terms, setTerms] = useState<any[]>([]);
+  const [selectedTermId, setSelectedTermId] = useState<string>('');
+  const [isGradingMode, setIsGradingMode] = useState(false);
+  const [grades, setGrades] = useState<any[]>([]);
+  const [savingGrades, setSavingGrades] = useState(false);
+
   // Form State
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
@@ -57,6 +64,13 @@ export default function TeacherDashboard() {
 
       const assignData = await api.get<{ assignments: AssignmentInfo[] }>('/teacher/classes');
       setAssignments(assignData.assignments);
+
+      const termsData = await api.get<{ terms: any[] }>('/teacher/terms');
+      setTerms(termsData.terms);
+      if (termsData.terms.length > 0) {
+        const activeTerm = termsData.terms.find((t: any) => t.isCurrent) || termsData.terms[0];
+        setSelectedTermId(activeTerm.id);
+      }
 
       if (user) {
         setPhone(user.phone || '');
@@ -89,13 +103,107 @@ export default function TeacherDashboard() {
     }
   };
 
+  const loadGradeBook = async (assignment: AssignmentInfo, termId: string) => {
+    if (!termId) return;
+    setStudentsLoading(true);
+    try {
+      const res = await api.get<{ gradeBook: any[] }>(
+        `/teacher/grades?classId=${assignment.class.id}&classArmId=${assignment.classArm.id}&subjectId=${assignment.subject.id}&termId=${termId}&sessionId=${assignment.session.id}`
+      );
+      setGrades(res.gradeBook.map(student => ({
+        ...student,
+        caScore: student.caScore !== null ? student.caScore : 0,
+        examScore: student.examScore !== null ? student.examScore : 0,
+      })));
+    } catch (err: any) {
+      alert(err.message || 'Failed to load grade book.');
+    } finally {
+      setStudentsLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchDashboardData();
   }, [user]);
 
   const handleSelectAssignment = async (idx: number) => {
     setSelectedAssignmentIdx(idx);
+    setIsGradingMode(false);
     await loadStudents(assignments[idx]);
+  };
+
+  const handleToggleGradingMode = async () => {
+    if (selectedAssignmentIdx === null) return;
+    const assignment = assignments[selectedAssignmentIdx];
+    if (!isGradingMode) {
+      await loadGradeBook(assignment, selectedTermId);
+    } else {
+      await loadStudents(assignment);
+    }
+    setIsGradingMode(!isGradingMode);
+  };
+
+  const handleTermChange = async (termId: string) => {
+    setSelectedTermId(termId);
+    if (selectedAssignmentIdx !== null && isGradingMode) {
+      await loadGradeBook(assignments[selectedAssignmentIdx], termId);
+    }
+  };
+
+  const handleScoreChange = (studentId: string, field: 'caScore' | 'examScore', value: string) => {
+    const numericVal = parseFloat(value) || 0;
+    
+    if (field === 'caScore' && numericVal > 40) return;
+    if (field === 'examScore' && numericVal > 60) return;
+
+    setGrades(prev => prev.map(student => {
+      if (student.studentId === studentId) {
+        const updated = { ...student, [field]: numericVal };
+        const total = updated.caScore + updated.examScore;
+        
+        let grade = 'F';
+        if (total >= 70) grade = 'A';
+        else if (total >= 60) grade = 'B';
+        else if (total >= 50) grade = 'C';
+        else if (total >= 45) grade = 'D';
+        else if (total >= 40) grade = 'E';
+        
+        return {
+          ...updated,
+          totalScore: total,
+          grade,
+        };
+      }
+      return student;
+    }));
+  };
+
+  const handleSaveGrades = async () => {
+    if (selectedAssignmentIdx === null) return;
+    const assignment = assignments[selectedAssignmentIdx];
+    setSavingGrades(true);
+    try {
+      const payload = {
+        classId: assignment.class.id,
+        classArmId: assignment.classArm.id,
+        subjectId: assignment.subject.id,
+        termId: selectedTermId,
+        sessionId: assignment.session.id,
+        scores: grades.map(g => ({
+          studentId: g.studentId,
+          caScore: g.caScore,
+          examScore: g.examScore,
+        })),
+      };
+
+      await api.post('/teacher/grades', payload);
+      alert('Grades saved as draft successfully!');
+      await loadGradeBook(assignment, selectedTermId);
+    } catch (err: any) {
+      alert(err.message || 'Failed to save grades.');
+    } finally {
+      setSavingGrades(false);
+    }
   };
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
@@ -202,33 +310,67 @@ export default function TeacherDashboard() {
                   </div>
                 </div>
 
-                {/* Selected Class Students */}
+                {/* Selected Class Students / Grade Book Sheet */}
                 {selectedAssignmentIdx !== null && assignments[selectedAssignmentIdx] && (
                   <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 space-y-4 shadow-sm">
-                    <div className="flex justify-between items-center pb-2 border-b border-slate-100 dark:border-slate-850">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center pb-3 border-b border-slate-100 dark:border-slate-850 gap-4">
                       <div>
-                        <span className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider font-mono">
+                        <span className="text-xs font-bold text-blue-605 dark:text-blue-400 uppercase tracking-wider font-mono">
                           {assignments[selectedAssignmentIdx].subject.code} - {assignments[selectedAssignmentIdx].subject.name}
                         </span>
-                        <h3 className="font-extrabold text-lg text-slate-900 dark:text-white">
-                          Students in {assignments[selectedAssignmentIdx].class.name} ({assignments[selectedAssignmentIdx].classArm.name})
+                        <h3 className="font-extrabold text-lg text-slate-900 dark:text-white mt-0.5">
+                          {isGradingMode ? 'Term Grade Book Sheet' : 'Class Enrollment Roster'}
                         </h3>
+                        <p className="text-xs text-slate-500 font-semibold">
+                          Class: {assignments[selectedAssignmentIdx].class.name} ({assignments[selectedAssignmentIdx].classArm.name})
+                        </p>
                       </div>
-                      <span className="text-xs text-slate-500 italic">
-                        Session: {assignments[selectedAssignmentIdx].session.name}
-                      </span>
+
+                      <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                        {isGradingMode && (
+                          <div className="flex items-center gap-2">
+                            <label className="text-xs font-bold text-slate-500 uppercase">Term:</label>
+                            <select
+                              value={selectedTermId}
+                              onChange={(e) => handleTermChange(e.target.value)}
+                              className="px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-semibold text-slate-800 dark:text-slate-100"
+                            >
+                              {terms.map((t) => (
+                                <option key={t.id} value={t.id}>
+                                  {t.name} ({t.session.name})
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+                        <button
+                          onClick={handleToggleGradingMode}
+                          className="py-1.5 px-4 bg-slate-105 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-bold rounded-lg transition-colors"
+                        >
+                          {isGradingMode ? '📋 View Roster' : '✍ Enter Grades'}
+                        </button>
+                        {isGradingMode && (
+                          <button
+                            onClick={handleSaveGrades}
+                            disabled={savingGrades}
+                            className="py-1.5 px-4 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold rounded-lg text-xs transition-colors shadow-md shadow-blue-500/10"
+                          >
+                            {savingGrades ? 'Saving...' : '💾 Save Draft'}
+                          </button>
+                        )}
+                      </div>
                     </div>
 
                     {studentsLoading ? (
-                      <p className="text-xs text-slate-500 py-6 text-center">Loading enrolled class lists...</p>
-                    ) : (
+                      <p className="text-xs text-slate-500 py-6 text-center">Loading grade records...</p>
+                    ) : !isGradingMode ? (
+                      /* Roster View Table */
                       <div className="overflow-x-auto">
                         <table className="w-full text-left text-sm text-slate-350">
                           <thead className="text-xs text-slate-500 uppercase border-b border-slate-200 dark:border-slate-800">
                             <tr>
                               <th className="py-2.5 px-3">Admission Number</th>
-                              <th className="py-2.5 px-3">First Name</th>
-                              <th className="py-2.5 px-3">Last Name</th>
+                              <th className="py-2.5 px-3">Student Name</th>
                               <th className="py-2.5 px-3">Email Address</th>
                             </tr>
                           </thead>
@@ -236,15 +378,79 @@ export default function TeacherDashboard() {
                             {students.map((st) => (
                               <tr key={st.id} className="border-b border-slate-100 dark:border-slate-850">
                                 <td className="py-3 px-3 font-semibold text-blue-650 dark:text-blue-450">{st.admissionNumber}</td>
-                                <td className="py-3 px-3 text-slate-900 dark:text-white">{st.user.firstName}</td>
-                                <td className="py-3 px-3 text-slate-900 dark:text-white">{st.user.lastName}</td>
+                                <td className="py-3 px-3 text-slate-900 dark:text-white font-semibold">{st.user.firstName} {st.user.lastName}</td>
                                 <td className="py-3 px-3 text-xs text-slate-500">{st.user.email}</td>
                               </tr>
                             ))}
                             {students.length === 0 && (
                               <tr>
-                                <td colSpan={4} className="py-4 text-center text-xs text-slate-550 italic">
+                                <td colSpan={3} className="py-4 text-center text-xs text-slate-550 italic">
                                   No students currently enrolled in this class arm.
+                                </td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      /* Grading Sheet Mode Table */
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left text-sm text-slate-350">
+                          <thead className="text-xs text-slate-500 uppercase border-b border-slate-200 dark:border-slate-800">
+                            <tr>
+                              <th className="py-2.5 px-3">Student Info</th>
+                              <th className="py-2.5 px-3">CA (Max 40)</th>
+                              <th className="py-2.5 px-3">Exam (Max 60)</th>
+                              <th className="py-2.5 px-3">Total</th>
+                              <th className="py-2.5 px-3">Grade</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {grades.map((g) => (
+                              <tr key={g.studentId} className="border-b border-slate-100 dark:border-slate-850">
+                                <td className="py-3 px-3">
+                                  <div className="font-semibold text-slate-900 dark:text-white">{g.firstName} {g.lastName}</div>
+                                  <div className="text-[10px] text-slate-500 font-mono">{g.admissionNumber}</div>
+                                </td>
+                                <td className="py-3 px-3">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    max="40"
+                                    value={g.caScore}
+                                    onChange={(e) => handleScoreChange(g.studentId, 'caScore', e.target.value)}
+                                    className="w-20 px-2 py-1 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-sm text-slate-900 dark:text-white text-center focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                  />
+                                </td>
+                                <td className="py-3 px-3">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    max="60"
+                                    value={g.examScore}
+                                    onChange={(e) => handleScoreChange(g.studentId, 'examScore', e.target.value)}
+                                    className="w-20 px-2 py-1 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-sm text-slate-900 dark:text-white text-center focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                  />
+                                </td>
+                                <td className="py-3 px-3 font-bold text-slate-850 dark:text-white">
+                                  {g.totalScore} / 100
+                                </td>
+                                <td className="py-3 px-3">
+                                  <span className={`px-2.5 py-0.5 rounded text-xs font-extrabold ${
+                                    g.grade === 'A' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' :
+                                    g.grade === 'B' || g.grade === 'C' ? 'bg-blue-500/10 text-blue-500 border border-blue-500/20' :
+                                    g.grade === 'D' || g.grade === 'E' ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' :
+                                    'bg-rose-500/10 text-rose-500 border border-rose-500/20'
+                                  }`}>
+                                    {g.grade || 'F'}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                            {grades.length === 0 && (
+                              <tr>
+                                <td colSpan={5} className="py-4 text-center text-xs text-slate-555 italic">
+                                  No student records found to grade.
                                 </td>
                               </tr>
                             )}

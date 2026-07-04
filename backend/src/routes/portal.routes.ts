@@ -8,6 +8,7 @@ import {
   getTeacherDashboard,
   getTeacherClasses,
   getTeacherStudents,
+  getTeacherTerms,
 } from '../controllers/portal.controller';
 import { authenticate, requireRoles } from '../middleware/auth';
 
@@ -71,6 +72,12 @@ router.get(
   authenticate,
   requireRoles(['TEACHER']),
   getTeacherStudents
+);
+router.get(
+  '/teacher/terms',
+  authenticate,
+  requireRoles(['TEACHER']),
+  getTeacherTerms
 );
 router.put(
   '/teacher/profile',

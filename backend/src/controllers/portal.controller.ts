@@ -391,3 +391,30 @@ export const getTeacherStudents = async (req: Request, res: Response): Promise<v
     res.status(500).json({ error: 'Internal server error fetching class students.' });
   }
 };
+
+export const getTeacherTerms = async (req: Request, res: Response): Promise<void> => {
+  const userId = req.user?.id;
+
+  try {
+    const teacher = await prisma.teacherProfile.findUnique({
+      where: { userId },
+    });
+    if (!teacher) {
+      res.status(404).json({ error: 'Teacher profile not found.' });
+      return;
+    }
+
+    const terms = await prisma.term.findMany({
+      where: { schoolId: teacher.schoolId },
+      include: {
+        session: { select: { name: true } },
+      },
+      orderBy: [{ session: { name: 'desc' } }, { type: 'asc' }],
+    });
+
+    res.status(200).json({ terms });
+  } catch (error) {
+    console.error('GetTeacherTerms Error:', error);
+    res.status(500).json({ error: 'Internal server error fetching terms.' });
+  }
+};
