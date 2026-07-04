@@ -38,6 +38,7 @@ import {
 } from '../controllers/academic.controller';
 import { authenticate, requireRoles } from '../middleware/auth';
 import { resolveTenant } from '../middleware/tenant';
+import { checkSubscriptionLimit } from '../middleware/subscription';
 
 const router = Router();
 
@@ -48,7 +49,7 @@ router.use(resolveTenant);
 
 // 👨‍🏫 Teachers Management Routes
 router.get('/admin/teachers', getTeachers);
-router.post('/admin/teachers', createTeacher);
+router.post('/admin/teachers', checkSubscriptionLimit('TEACHER'), createTeacher);
 router.put('/admin/teachers/:id', updateTeacher);
 router.delete('/admin/teachers/:id', deleteTeacher);
 
@@ -60,7 +61,7 @@ router.delete('/admin/parents/:id', deleteParent);
 
 // 🎓 Students Management Routes
 router.get('/admin/students', getStudents);
-router.post('/admin/students', createStudent);
+router.post('/admin/students', checkSubscriptionLimit('STUDENT'), createStudent);
 router.put('/admin/students/:id', updateStudent);
 router.delete('/admin/students/:id', deleteStudent);
 

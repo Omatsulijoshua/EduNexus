@@ -104,11 +104,15 @@ interface Assignment {
 
 export default function SchoolAdminDashboard() {
   const { user, logout } = useAuth();
-  const [activeTab, setActiveTab] = useState<'profile' | 'academic' | 'users' | 'assignments' | 'landingPage' | 'reports'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'academic' | 'users' | 'assignments' | 'landingPage' | 'reports' | 'billing'>('profile');
 
   // Loading and Error States
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Billing States
+  const [billingData, setBillingData] = useState<any | null>(null);
+  const [billingLoading, setBillingLoading] = useState(false);
 
   // Master Sheet reporting states
   const [reportFilter, setReportFilter] = useState({
@@ -281,6 +285,33 @@ export default function SchoolAdminDashboard() {
       setMasterSheetLoading(false);
     }
   };
+
+  const fetchBillingData = async () => {
+    setBillingLoading(true);
+    try {
+      const res = await api.get<any>('/billing/active');
+      setBillingData(res);
+    } catch (err: any) {
+      console.error('FetchBillingData Error:', err);
+    } finally {
+      setBillingLoading(false);
+    }
+  };
+
+  const handleSubscribe = async (planId: string) => {
+    try {
+      const res = await api.post<{ checkoutUrl: string }>('/billing/checkout', { planId });
+      window.location.href = res.checkoutUrl;
+    } catch (err: any) {
+      alert(err.message || 'Failed to start billing checkout.');
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'billing') {
+      fetchBillingData();
+    }
+  }, [activeTab]);
 
   const handleUpdateLandingPage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -479,6 +510,12 @@ export default function SchoolAdminDashboard() {
                 className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl font-medium text-sm transition-all text-left ${activeTab === 'reports' ? 'bg-blue-600/10 text-blue-600 dark:text-blue-400' : 'text-slate-555 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}
               >
                 📊 Reports & Master Sheet
+              </button>
+              <button
+                onClick={() => setActiveTab('billing')}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl font-medium text-sm transition-all text-left ${activeTab === 'billing' ? 'bg-blue-600/10 text-blue-600 dark:text-blue-400' : 'text-slate-555 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}
+              >
+                💳 Subscription & Billing
               </button>
             </nav>
           </div>
@@ -1386,6 +1423,200 @@ export default function SchoolAdminDashboard() {
                         </table>
                       </div>
                     </div>
+                  )}
+                </div>
+              )}
+
+              {/* Tab 7: SUBSCRIPTION & BILLING */}
+              {activeTab === 'billing' && (
+                <div className="space-y-8 animate-fadeIn text-slate-800 dark:text-slate-100">
+                  {billingLoading ? (
+                    <div className="flex flex-col items-center justify-center py-20 space-y-3">
+                      <div className="w-10 h-10 border-4 border-blue-600 rounded-full animate-spin border-t-transparent"></div>
+                      <p className="text-slate-450 text-sm">Loading billing records...</p>
+                    </div>
+                  ) : !billingData ? (
+                    <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-500 text-sm">
+                      Failed to load billing portal data.
+                    </div>
+                  ) : (
+                    <>
+                      {/* Active subscription & usage limits */}
+                      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        {/* Current Plan Summary Card */}
+                        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl shadow-sm space-y-4">
+                          <h4 className="font-extrabold text-xs text-slate-500 uppercase tracking-wider">Current Active Plan</h4>
+                          {billingData.subscription ? (
+                            <div className="space-y-2">
+                              <h3 className="text-2xl font-black text-blue-605 dark:text-blue-400">
+                                {billingData.subscription.plan.name}
+                              </h3>
+                              <div className="text-xs text-slate-550 space-y-1">
+                                <p><span className="font-semibold text-slate-700 dark:text-slate-300">Status:</span> <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-500 rounded text-[10px] font-bold">ACTIVE</span></p>
+                                <p><span className="font-semibold text-slate-700 dark:text-slate-300">Billing Cycle:</span> Monthly ($ {billingData.subscription.plan.price}/mo)</p>
+                                <p><span className="font-semibold text-slate-700 dark:text-slate-300">End Date:</span> {new Date(billingData.subscription.endDate).toLocaleDateString()}</p>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="space-y-2 py-2">
+                              <p className="text-sm font-semibold text-slate-500 italic">No active subscription plan</p>
+                              <p className="text-xs text-slate-450">Please select one of the available plans below to activate school features.</p>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Student Count Usage Meter */}
+                        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl shadow-sm space-y-3">
+                          <div className="flex justify-between items-center">
+                            <h4 className="font-extrabold text-xs text-slate-500 uppercase tracking-wider">Student Profile Usage</h4>
+                            <span className="text-xs font-bold text-slate-750 dark:text-slate-300">
+                              {billingData.usage.students} / {billingData.subscription?.plan?.studentLimit || '0'} Limit
+                            </span>
+                          </div>
+                          {/* Progress bar */}
+                          <div className="w-full bg-slate-100 dark:bg-slate-950 h-3.5 rounded-full overflow-hidden border border-slate-200 dark:border-slate-850">
+                            <div
+                              style={{
+                                width: `${Math.min(
+                                  ((billingData.usage.students) / (billingData.subscription?.plan?.studentLimit || 1)) * 100,
+                                  100
+                                )}%`,
+                              }}
+                              className={`h-full transition-all ${
+                                billingData.usage.students >= (billingData.subscription?.plan?.studentLimit || 0)
+                                  ? 'bg-rose-500'
+                                  : 'bg-blue-600'
+                              }`}
+                            ></div>
+                          </div>
+                          <p className="text-[10px] text-slate-455">
+                            {billingData.usage.students >= (billingData.subscription?.plan?.studentLimit || 0)
+                              ? '⚠️ Limit reached. New student registrations will be blocked until you upgrade.'
+                              : 'Within limits. Accounts are active.'}
+                          </p>
+                        </div>
+
+                        {/* Teacher Count Usage Meter */}
+                        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl shadow-sm space-y-3">
+                          <div className="flex justify-between items-center">
+                            <h4 className="font-extrabold text-xs text-slate-500 uppercase tracking-wider">Teacher Profile Usage</h4>
+                            <span className="text-xs font-bold text-slate-755 dark:text-slate-300">
+                              {billingData.usage.teachers} / {billingData.subscription?.plan?.teacherLimit || '0'} Limit
+                            </span>
+                          </div>
+                          {/* Progress bar */}
+                          <div className="w-full bg-slate-100 dark:bg-slate-950 h-3.5 rounded-full overflow-hidden border border-slate-200 dark:border-slate-850">
+                            <div
+                              style={{
+                                width: `${Math.min(
+                                  ((billingData.usage.teachers) / (billingData.subscription?.plan?.teacherLimit || 1)) * 100,
+                                  100
+                                )}%`,
+                              }}
+                              className={`h-full transition-all ${
+                                billingData.usage.teachers >= (billingData.subscription?.plan?.teacherLimit || 0)
+                                  ? 'bg-rose-500'
+                                  : 'bg-blue-600'
+                              }`}
+                            ></div>
+                          </div>
+                          <p className="text-[10px] text-slate-455">
+                            {billingData.usage.teachers >= (billingData.subscription?.plan?.teacherLimit || 0)
+                              ? '⚠️ Limit reached. New teacher additions will be blocked until you upgrade.'
+                              : 'Within limits. Accounts are active.'}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Pricing plans listings */}
+                      <div className="space-y-4">
+                        <h4 className="font-extrabold text-base text-slate-900 dark:text-white">Upgrade or Change Plan</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                          {billingData.plans.map((plan: any) => {
+                            const isCurrentPlan = billingData.subscription?.planId === plan.id;
+                            return (
+                              <div
+                                key={plan.id}
+                                className={`border p-6 rounded-2xl bg-white dark:bg-slate-900 flex flex-col justify-between space-y-5 shadow-sm relative transition-all ${
+                                  isCurrentPlan
+                                    ? 'border-blue-600 dark:border-blue-500 ring-2 ring-blue-500/20'
+                                    : 'border-slate-200 dark:border-slate-800'
+                                }`}
+                              >
+                                {isCurrentPlan && (
+                                  <span className="absolute top-0 right-6 -translate-y-1/2 bg-blue-600 text-white font-extrabold text-[9px] uppercase tracking-wider py-1 px-3.5 rounded-full shadow">
+                                    Current Plan
+                                  </span>
+                                )}
+                                <div className="space-y-2">
+                                  <h3 className="font-extrabold text-lg text-slate-950 dark:text-white">{plan.name}</h3>
+                                  <div className="flex items-baseline gap-1">
+                                    <span className="text-3xl font-black text-slate-900 dark:text-white">${plan.price}</span>
+                                    <span className="text-xs text-slate-500">/ month</span>
+                                  </div>
+                                  <ul className="text-xs text-slate-550 space-y-2 pt-2 border-t border-slate-100 dark:border-slate-850">
+                                    <li>👤 Limit: <span className="font-semibold text-slate-700 dark:text-slate-300">{plan.studentLimit} Students</span></li>
+                                    <li>🧑‍🏫 Limit: <span className="font-semibold text-slate-700 dark:text-slate-300">{plan.teacherLimit} Teachers</span></li>
+                                    <li>⚡ Access: <span className="font-semibold text-slate-700 dark:text-slate-300">All Portal Modules</span></li>
+                                  </ul>
+                                </div>
+                                <button
+                                  onClick={() => handleSubscribe(plan.id)}
+                                  disabled={isCurrentPlan}
+                                  className={`w-full py-2.5 font-extrabold rounded-xl text-xs transition-colors ${
+                                    isCurrentPlan
+                                      ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-not-allowed'
+                                      : 'bg-blue-650 hover:bg-blue-600 text-white shadow-md shadow-blue-500/10'
+                                  }`}
+                                >
+                                  {isCurrentPlan ? 'Current Plan Active' : 'Subscribe / Upgrade'}
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Billing Payment logs */}
+                      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl shadow-sm space-y-4">
+                        <h4 className="font-extrabold text-base text-slate-900 dark:text-white">Transaction & Payment Receipts</h4>
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-left text-xs border-collapse">
+                            <thead>
+                              <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-500 uppercase bg-slate-50 dark:bg-slate-950 font-bold">
+                                <th className="py-2.5 px-3">Date</th>
+                                <th className="py-2.5 px-3">Reference ID</th>
+                                <th className="py-2.5 px-3">Gateway</th>
+                                <th className="py-2.5 px-3">Amount</th>
+                                <th className="py-2.5 px-3">Status</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {billingData.payments.map((p: any) => (
+                                <tr key={p.id} className="border-b border-slate-100 dark:border-slate-850">
+                                  <td className="py-3 px-3 text-slate-500">{new Date(p.createdAt).toLocaleDateString()}</td>
+                                  <td className="py-3 px-3 font-mono font-semibold">{p.reference}</td>
+                                  <td className="py-3 px-3 font-semibold text-slate-655">{p.gateway}</td>
+                                  <td className="py-3 px-3 font-bold">${p.amount} {p.currency}</td>
+                                  <td className="py-3 px-3">
+                                    <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-500 rounded font-bold text-[9px] uppercase tracking-wider">
+                                      {p.status}
+                                    </span>
+                                  </td>
+                                </tr>
+                              ))}
+                              {billingData.payments.length === 0 && (
+                                <tr>
+                                  <td colSpan={5} className="py-4 text-center text-xs text-slate-550 italic">
+                                    No payment transactions recorded.
+                                  </td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </>
                   )}
                 </div>
               )}

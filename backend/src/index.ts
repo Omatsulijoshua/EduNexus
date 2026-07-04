@@ -10,6 +10,7 @@ import landingPageRoutes from './routes/landing-page.routes';
 import portalRoutes from './routes/portal.routes';
 import gradingRoutes from './routes/grading.routes';
 import reportRoutes from './routes/report.routes';
+import billingRoutes from './routes/billing.routes';
 
 // Load environment variables
 dotenv.config();
@@ -40,6 +41,9 @@ app.use('/api', superAdminRoutes);
 app.use('/api', adminRoutes);
 app.use('/api', landingPageRoutes);
 app.use('/api', portalRoutes);
+app.use('/api', gradingRoutes);
+app.use('/api', reportRoutes);
+app.use('/api', billingRoutes);
 
 // Start Server
 app.listen(port, () => {
