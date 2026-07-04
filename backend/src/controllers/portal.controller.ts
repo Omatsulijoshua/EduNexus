@@ -273,3 +273,121 @@ export const getParentChildren = async (req: Request, res: Response): Promise<vo
     res.status(500).json({ error: 'Internal server error fetching children academic details.' });
   }
 };
+
+// ==========================================
+// 👨‍🏫 TEACHER PORTAL ENDPOINTS
+// ==========================================
+
+export const getTeacherDashboard = async (req: Request, res: Response): Promise<void> => {
+  const userId = req.user?.id;
+
+  try {
+    const teacher = await prisma.teacherProfile.findUnique({
+      where: { userId },
+    });
+
+    if (!teacher) {
+      res.status(404).json({ error: 'Teacher profile not found.' });
+      return;
+    }
+
+    const assignments = await prisma.teacherAssignment.findMany({
+      where: { teacherId: teacher.id },
+    });
+
+    const uniqueClasses = new Set(assignments.map((a) => a.classId)).size;
+    const uniqueSubjects = new Set(assignments.map((a) => a.subjectId)).size;
+
+    res.status(200).json({
+      classesCount: uniqueClasses,
+      subjectsCount: uniqueSubjects,
+      assignmentsCount: assignments.length,
+    });
+  } catch (error) {
+    console.error('GetTeacherDashboard Error:', error);
+    res.status(500).json({ error: 'Internal server error fetching teacher dashboard.' });
+  }
+};
+
+export const getTeacherClasses = async (req: Request, res: Response): Promise<void> => {
+  const userId = req.user?.id;
+
+  try {
+    const teacher = await prisma.teacherProfile.findUnique({
+      where: { userId },
+    });
+
+    if (!teacher) {
+      res.status(404).json({ error: 'Teacher profile not found.' });
+      return;
+    }
+
+    const assignments = await prisma.teacherAssignment.findMany({
+      where: { teacherId: teacher.id },
+      include: {
+        class: { select: { id: true, name: true } },
+        classArm: { select: { id: true, name: true } },
+        subject: { select: { id: true, name: true, code: true } },
+        session: { select: { id: true, name: true } },
+      },
+    });
+
+    res.status(200).json({ assignments });
+  } catch (error) {
+    console.error('GetTeacherClasses Error:', error);
+    res.status(500).json({ error: 'Internal server error fetching assigned classes.' });
+  }
+};
+
+export const getTeacherStudents = async (req: Request, res: Response): Promise<void> => {
+  const userId = req.user?.id;
+  const { classId, classArmId } = req.query;
+
+  if (!classId || !classArmId) {
+    res.status(400).json({ error: 'classId and classArmId query parameters are required.' });
+    return;
+  }
+
+  try {
+    const teacher = await prisma.teacherProfile.findUnique({
+      where: { userId },
+    });
+
+    if (!teacher) {
+      res.status(404).json({ error: 'Teacher profile not found.' });
+      return;
+    }
+
+    // Verify this teacher is indeed assigned to this class section
+    const isAssigned = await prisma.teacherAssignment.findFirst({
+      where: {
+        teacherId: teacher.id,
+        classId: classId as string,
+        classArmId: classArmId as string,
+      },
+    });
+
+    if (!isAssigned) {
+      res.status(403).json({ error: 'Access denied. You are not assigned to this class section.' });
+      return;
+    }
+
+    const students = await prisma.studentProfile.findMany({
+      where: {
+        classId: classId as string,
+        classArmId: classArmId as string,
+      },
+      include: {
+        user: {
+          select: { id: true, firstName: true, lastName: true, email: true },
+        },
+      },
+      orderBy: { admissionNumber: 'asc' },
+    });
+
+    res.status(200).json({ students });
+  } catch (error) {
+    console.error('GetTeacherStudents Error:', error);
+    res.status(500).json({ error: 'Internal server error fetching class students.' });
+  }
+};

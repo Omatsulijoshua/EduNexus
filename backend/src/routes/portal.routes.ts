@@ -5,6 +5,9 @@ import {
   updateStudentProfile,
   getParentDashboard,
   getParentChildren,
+  getTeacherDashboard,
+  getTeacherClasses,
+  getTeacherStudents,
 } from '../controllers/portal.controller';
 import { authenticate, requireRoles } from '../middleware/auth';
 
@@ -47,6 +50,32 @@ router.put(
   '/parent/profile',
   authenticate,
   requireRoles(['PARENT']),
+  updateStudentProfile
+);
+
+// Teacher Portal Routes (Authenticated & Restricted to TEACHERS)
+router.get(
+  '/teacher/dashboard',
+  authenticate,
+  requireRoles(['TEACHER']),
+  getTeacherDashboard
+);
+router.get(
+  '/teacher/classes',
+  authenticate,
+  requireRoles(['TEACHER']),
+  getTeacherClasses
+);
+router.get(
+  '/teacher/students',
+  authenticate,
+  requireRoles(['TEACHER']),
+  getTeacherStudents
+);
+router.put(
+  '/teacher/profile',
+  authenticate,
+  requireRoles(['TEACHER']),
   updateStudentProfile
 );
 
