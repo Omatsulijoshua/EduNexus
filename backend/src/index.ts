@@ -7,6 +7,7 @@ import schoolRoutes from './routes/school.routes';
 import superAdminRoutes from './routes/super-admin.routes';
 import adminRoutes from './routes/admin.routes';
 import landingPageRoutes from './routes/landing-page.routes';
+import portalRoutes from './routes/portal.routes';
 
 // Load environment variables
 dotenv.config();
@@ -21,13 +22,6 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// Routes
-app.use('/api/auth', authRoutes);
-app.use('/api', schoolRoutes);
-app.use('/api', superAdminRoutes);
-app.use('/api', adminRoutes);
-app.use('/api', landingPageRoutes);
-
 // Health Check Endpoint
 app.get('/api/health', (req: Request, res: Response) => {
   res.status(200).json({
@@ -36,6 +30,14 @@ app.get('/api/health', (req: Request, res: Response) => {
     timestamp: new Date().toISOString(),
   });
 });
+
+// Routes
+app.use('/api/auth', authRoutes);
+app.use('/api', schoolRoutes);
+app.use('/api', superAdminRoutes);
+app.use('/api', adminRoutes);
+app.use('/api', landingPageRoutes);
+app.use('/api', portalRoutes);
 
 // Start Server
 app.listen(port, () => {
