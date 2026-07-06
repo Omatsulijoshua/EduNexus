@@ -77,7 +77,6 @@ EduNexus/
 
 ### Prerequisites
 - Node.js (v18+ recommended)
-- PostgreSQL running locally or in the cloud
 - Git
 
 ### 1. Clone the Repository
@@ -99,22 +98,32 @@ cd EduNexus
    ```bash
    cp .env.example .env
    ```
-4. Configure your database connection in `.env`:
+4. Configure your database connection in `.env`. You can use a local PostgreSQL server, or a quick SQLite file for local development:
    ```env
+   # PostgreSQL Connection (Default)
    DATABASE_URL="postgresql://postgres:YOUR_PASSWORD@localhost:5432/edunexus?schema=public"
-   JWT_SECRET="your_jwt_access_secret"
-   JWT_REFRESH_SECRET="your_jwt_refresh_secret"
+
+   # OR SQLite Option (Recommended for quick local testing without DB setup)
+   # DATABASE_URL="file:./dev.db"
+
+   JWT_SECRET="edunexus_access_token_secret_key_2026_change_me"
+   JWT_REFRESH_SECRET="edunexus_refresh_token_secret_key_2026_change_me"
+   FRONTEND_URL="http://localhost:3000"
    PORT=5000
    ```
-5. Run Prisma migrations to set up your database tables:
+5. Run Prisma to set up database tables:
    ```bash
    npx prisma db push
    ```
-6. Start the backend development server:
+6. Seed the database with mock accounts for all roles:
+   ```bash
+   npx prisma db seed
+   ```
+7. Start the backend development server:
    ```bash
    npm run dev
    ```
-   The backend will be running at `http://localhost:5000`. Verify using the health check endpoint: `http://localhost:5000/api/health`.
+   The backend will run at `http://localhost:5000`. You can test it via the health check: `http://localhost:5000/api/health`.
 
 ### 3. Setup the Frontend
 1. Navigate to the frontend directory:
@@ -129,7 +138,43 @@ cd EduNexus
    ```bash
    npm run dev
    ```
-   The frontend will be running at `http://localhost:3000`.
+   The frontend will run at `http://localhost:3000`.
+
+---
+
+## 🔑 Role-Based Testing Accounts
+
+We have pre-seeded the database with 5 role-based profiles to test the entire SaaS portal functionality. Use the standard credentials below:
+
+* **Common Password for all accounts:** `password123`
+
+| Portal Role | Email Address | Description |
+| :--- | :--- | :--- |
+| **👑 Super Admin** | `superadmin@edunexus.com` | SaaS analytics, subscription plans, approve schools. |
+| **🏫 School Admin** | `admin@edunexusacademy.com` | Manage school structure, classes, teachers, student count. |
+| **👨‍🏫 Teacher** | `teacher@edunexusacademy.com` | Spreadsheet grade books, class directories. |
+| **👪 Parent** | `parent@edunexusacademy.com` | View student report cards, switch between linked children. |
+| **🎓 Student** | `student@edunexusacademy.com` | Personal course outlines, download/print terminal report cards. |
+
+---
+
+## 🛠️ Production Build & Verification
+
+To verify or package the application for production deployment, run the following commands:
+
+### Backend Production Build
+```bash
+cd backend
+npm run build
+```
+This builds the TypeScript code to Javascript inside `/backend/dist`.
+
+### Frontend Production Build
+```bash
+cd frontend
+npm run build
+```
+This runs the Next.js production build compiler, checks types, and outputs optimized static bundles.
 
 ---
 
