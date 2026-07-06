@@ -1,0 +1,26 @@
+services:
+  # Backend Web Service
+  - type: web
+    name: edunexus-backend
+    env: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: node dist/index.js
+    rootDir: backend
+    envVars:
+      - key: PORT
+        value: 5000
+      - key: DATABASE_URL
+        fromDatabase:
+          name: edunexus-db
+          property: connectionString
+      - key: JWT_SECRET
+        value: edunexus_access_token_secret_key_2026_change_me
+      - key: JWT_REFRESH_SECRET
+        value: edunexus_refresh_token_secret_key_2026_change_me
+      - key: FRONTEND_URL
+        value: https://edunexus-frontend.vercel.app
+
+databases:
+  - name: edunexus-db
+    plan: free
